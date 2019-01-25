@@ -1,13 +1,13 @@
 package response
 
 import (
-	"net/http"
 	"encoding/json"
+	"net/http"
 )
 
 type ErrorResponse struct {
-	Status 	 string `json:"status"`
-	Message  string `json:"message"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
 }
 
 type GlobalResponse struct {
