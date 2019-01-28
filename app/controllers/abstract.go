@@ -16,7 +16,7 @@ type Controller struct {
 	Request        *http.Request
 	Response       *response.GlobalResponse
 	DB             *gorm.DB
-	Model          interface{}
+	User           *models.User
 }
 
 func (c Controller) Run(controllerType interface{}) {
@@ -29,8 +29,8 @@ func (c Controller) Migrate(model interface{}) {
 	}
 }
 
-func Call(controllerName string, actionName string, w http.ResponseWriter, req *http.Request, db *gorm.DB) {
-	c := Controller{controllerName, actionName, w, req, &response.GlobalResponse{}, db, nil}
+func Call(controllerName string, actionName string, w http.ResponseWriter, req *http.Request, db *gorm.DB, user *models.User) {
+	c := Controller{controllerName, actionName, w, req, &response.GlobalResponse{}, db, user}
 	mapper := map[string][]interface{}{
 		"User": []interface{}{UserController{c}, models.User{}},
 	}

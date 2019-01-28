@@ -13,20 +13,23 @@ type UserController struct {
 	super Controller
 }
 
-type UserRegisterSuccessResponse struct {
+type UserSuccessResponse struct {
 	ID    int64
 	Email string
 	Token string
 }
 
+var user models.User
+
 func (uc UserController) Index(w http.ResponseWriter, req *http.Request) {
-	// data := Data{"I'm from users index"}
-	// uc.super.Response.WithJson(w, http.StatusOK, data)
+	if err := uc.super.DB.Where("id = ?", uc.super.User.ID).First(&uc.super.User).Error; err != nil {
+		uc.super.Response.WithJson(w, http.StatusOK, err)
+	}
+
+	uc.super.Response.WithJson(w, http.StatusOK, UserSuccessResponse{uc.super.User.ID, uc.super.User.Email, uc.super.User.Token})
 }
 
 func (uc UserController) Create(w http.ResponseWriter, req *http.Request) {
-	var user models.User
-
 	json.NewDecoder(req.Body).Decode(&user)
 
 	if errs := validator.Validate(user); errs != nil {
@@ -41,5 +44,5 @@ func (uc UserController) Create(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	uc.super.Response.WithJson(w, http.StatusOK, UserRegisterSuccessResponse{user.ID, user.Email, user.Token})
+	uc.super.Response.WithJson(w, http.StatusOK, UserSuccessResponse{user.ID, user.Email, user.Token})
 }

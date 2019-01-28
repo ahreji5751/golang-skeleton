@@ -6,13 +6,12 @@ import (
 	"net/http"
 	"strings"
 
-	"fmt"
-
 	"github.com/jinzhu/gorm"
 )
 
 type Authentication struct {
-	DB *gorm.DB
+	DB   *gorm.DB
+	User *models.User
 }
 
 func (amw Authentication) CheckAuth(next http.Handler) http.Handler {
@@ -26,16 +25,11 @@ func (amw Authentication) CheckAuth(next http.Handler) http.Handler {
 		s := strings.Split(authHeader, ";userId=")
 		token, userId := s[0], s[1]
 
-		var user models.User
-		// amw.db.Find(&user, "token = ? AND id = ?", token, userId)
-		rows := amw.DB.Where(&user, "id = ?", "1").Value
-
-		fmt.Println(rows)
-
-		if token != "123" || userId != "444" {
+		if err := amw.DB.Where("id = ? AND token = ?", userId, token).First(&amw.User).Error; err != nil {
 			response.GlobalResponse{}.WithError(w, http.StatusForbidden, "Error", "Forbidden")
 			return
 		}
+
 		next.ServeHTTP(w, r)
 	})
 }
