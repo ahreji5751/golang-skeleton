@@ -32,6 +32,7 @@ func (r Router) Route(db *gorm.DB) {
 	pur := protectedRouter.PathPrefix("/user").Subrouter()
 
 	pur.HandleFunc("", func(w http.ResponseWriter, req *http.Request) { controllers.Call("User", "Index", w, req, db, &user) }).Methods("GET")
+	pur.HandleFunc("/logout", func(w http.ResponseWriter, req *http.Request) { controllers.Call("User", "Logout", w, req, db, &user) }).Methods("GET")
 	ur.HandleFunc("/login", func(w http.ResponseWriter, req *http.Request) { controllers.Call("User", "Login", w, req, db, &user) }).Methods("POST")
 	ur.HandleFunc("/register", func(w http.ResponseWriter, req *http.Request) { controllers.Call("User", "Create", w, req, db, &user) }).Methods("POST")
 

@@ -3,6 +3,7 @@ package controllers
 import (
 	"go-app/app/models"
 	"go-app/app/response"
+	"go-app/app/helpers"
 	"net/http"
 	"reflect"
 
@@ -21,6 +22,7 @@ type Controller struct {
 
 func (c Controller) Run(controllerType interface{}) {
 	reflect.ValueOf(controllerType).MethodByName(c.Action).Call([]reflect.Value{reflect.ValueOf(c.ResponseWriter), reflect.ValueOf(c.Request)})
+	helpers.ClearStruct(c.User)
 }
 
 func (c Controller) Migrate(model interface{}) {
