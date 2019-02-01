@@ -1,10 +1,7 @@
 package helpers
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"math/rand"
-	"reflect"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -13,14 +10,29 @@ func GeneratePassword(password string) []byte {
 	if hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost); err == nil {
 		return hash
 	}
-
 	panic("Cannot generate the password")
 }
 
+func GenerateRandomBytes(n int) ([]byte, error) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+	// Note that err == nil only if we read len(b) bytes.
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
+}
+
 func GenerateToken() string {
-	h := sha256.New()
-	h.Write([]byte(RandStringBytes(64)))
-	return hex.EncodeToString(h.Sum(nil))
+	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-$%#@!^&*()"
+	bytes, _ := GenerateRandomBytes(64)
+
+	for i, b := range bytes {
+		bytes[i] = letters[b%byte(len(letters))]
+	}
+
+	return string(bytes)
 }
 
 func PasswordIsValid(password string, encryptedPassword []byte) bool {
@@ -36,9 +48,4 @@ func RandStringBytes(n int) string {
 		b[i] = letterBytes[rand.Intn(len(letterBytes))]
 	}
 	return string(b)
-}
-
-func ClearStruct(v interface{}) {
-	p := reflect.ValueOf(v).Elem()
-	p.Set(reflect.Zero(p.Type()))
 }

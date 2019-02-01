@@ -3,7 +3,6 @@ package routes
 import (
 	"go-app/app/controllers"
 	"go-app/app/middleware"
-	"go-app/app/models"
 	"log"
 	"net/http"
 	"os"
@@ -20,10 +19,8 @@ type Router struct {
 func (r Router) Route(db *gorm.DB) {
 	router := r.Mr.PathPrefix("").Subrouter()
 
-	var user models.User
-
 	protectedRouter := router.PathPrefix("").Subrouter()
-	protectedRouter.Use(middleware.Authentication{db, &user}.CheckAuth)
+	protectedRouter.Use(middleware.Authentication{db}.CheckAuth)
 
 	// User Router
 	ur := router.PathPrefix("/user").Subrouter()
@@ -31,10 +28,10 @@ func (r Router) Route(db *gorm.DB) {
 	// Protected User Router
 	pur := protectedRouter.PathPrefix("/user").Subrouter()
 
-	pur.HandleFunc("", func(w http.ResponseWriter, req *http.Request) { controllers.Call("User", "Index", w, req, db, &user) }).Methods("GET")
-	pur.HandleFunc("/logout", func(w http.ResponseWriter, req *http.Request) { controllers.Call("User", "Logout", w, req, db, &user) }).Methods("GET")
-	ur.HandleFunc("/login", func(w http.ResponseWriter, req *http.Request) { controllers.Call("User", "Login", w, req, db, &user) }).Methods("POST")
-	ur.HandleFunc("/register", func(w http.ResponseWriter, req *http.Request) { controllers.Call("User", "Create", w, req, db, &user) }).Methods("POST")
+	pur.HandleFunc("", func(w http.ResponseWriter, req *http.Request) { controllers.Call("User", "Index", w, req, db, true) }).Methods("GET")
+	pur.HandleFunc("/logout", func(w http.ResponseWriter, req *http.Request) { controllers.Call("User", "Logout", w, req, db, true) }).Methods("GET")
+	ur.HandleFunc("/login", func(w http.ResponseWriter, req *http.Request) { controllers.Call("User", "Login", w, req, db, false) }).Methods("POST")
+	ur.HandleFunc("/register", func(w http.ResponseWriter, req *http.Request) { controllers.Call("User", "Create", w, req, db, false) }).Methods("POST")
 
 	r.Mr.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(currentFilePath()+"/public"))))
 	r.Mr.NotFoundHandler = http.HandlerFunc(notFound)

@@ -18,26 +18,20 @@ type UserController struct {
 	super Controller
 }
 
-type UserSuccessResponse struct {
-	ID    int64  `json:"id"`
-	Email string `json:"email"`
-	Name  string `json:"name"`
-	Token string `json:"token"`
-}
-
-type EmptyResponse struct {
+type UserResource struct {
+	ID    uint64 `deepcopier:"field:ID" json:"id"`
+	Email string `deepcopier:"field:Email" json:"email"`
+	Name  string `deepcopier:"field:Name" json:"name"`
+	Token string `deepcopier:"field:Token" json:"token"`
 }
 
 func (uc UserController) Index(w http.ResponseWriter, req *http.Request) {
-	if err := uc.super.DB.Where("id = ?", uc.super.User.ID).First(&uc.super.User).Error; err != nil {
-		uc.super.Response.WithJson(w, http.StatusOK, err)
-	}
-
-	uc.super.Response.WithJson(w, http.StatusOK, UserSuccessResponse{uc.super.User.ID, uc.super.User.Email, uc.super.User.Name, uc.super.User.Token})
+	uc.super.Response.WithJson(w, http.StatusOK, &UserResource{uc.super.User.ID, uc.super.User.Email, uc.super.User.Name, uc.super.Token})
 }
 
 func (uc UserController) Create(w http.ResponseWriter, req *http.Request) {
 	var user models.User
+	var userToken models.UserToken
 
 	json.NewDecoder(req.Body).Decode(&user)
 
@@ -53,18 +47,24 @@ func (uc UserController) Create(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	user.EncryptedPassword, user.Token = helpers.GeneratePassword(user.Password), helpers.GenerateToken()
+	user.EncryptedPassword, userToken = helpers.GeneratePassword(user.Password), models.UserToken{Token: helpers.GenerateToken()}
 
 	if err := uc.super.DB.Create(&user).Error; err != nil {
 		uc.super.Response.WithJson(w, http.StatusBadRequest, err)
 		return
 	}
 
-	uc.super.Response.WithJson(w, http.StatusOK, UserSuccessResponse{user.ID, user.Email, user.Name, user.Token})
+	if err := uc.super.DB.Model(&user).Association("Tokens").Append(userToken).Error; err != nil {
+		uc.super.Response.WithJson(w, http.StatusBadRequest, err)
+		return
+	}
+
+	uc.super.Response.WithJson(w, http.StatusOK, &UserResource{user.ID, user.Email, user.Name, userToken.Token})
 }
 
 func (uc UserController) Login(w http.ResponseWriter, req *http.Request) {
 	var user models.User
+	var userToken models.UserToken
 
 	json.NewDecoder(req.Body).Decode(&user)
 
@@ -75,39 +75,49 @@ func (uc UserController) Login(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	requestPassword := user.Password
-
 	if err := uc.super.DB.Where("email = ?", user.Email).First(&user).Error; err != nil {
 		uc.super.Response.WithError(w, http.StatusBadRequest, "Error", "User does not exist!")
 		return
 	}
 
-	if !helpers.PasswordIsValid(requestPassword, user.EncryptedPassword) {
+	if !helpers.PasswordIsValid(user.Password, user.EncryptedPassword) {
 		uc.super.Response.WithError(w, http.StatusBadRequest, "Error", "Incorrect password!")
 		return
 	}
 
-	user.Token = helpers.GenerateToken()
+	if err := uc.super.DB.Where("user_id = ? AND active = 0", user.ID).First(&userToken).Error; err == nil {
+		userToken.Active = 1
+		if err := uc.super.DB.Save(&userToken).Error; err != nil {
+			uc.super.Response.WithJson(w, http.StatusBadRequest, err)
+			return
+		}
+		uc.super.Response.WithJson(w, http.StatusOK, &UserResource{user.ID, user.Email, user.Name, userToken.Token})
+		return
+	}
 
-	if err := uc.super.DB.Save(&user).Error; err != nil {
+	userToken = models.UserToken{Token: helpers.GenerateToken()}
+
+	if err := uc.super.DB.Model(&user).Association("Tokens").Append(userToken).Error; err != nil {
 		uc.super.Response.WithJson(w, http.StatusBadRequest, err)
 		return
 	}
 
-	uc.super.Response.WithJson(w, http.StatusOK, UserSuccessResponse{user.ID, user.Email, user.Name, user.Token})
+	uc.super.Response.WithJson(w, http.StatusOK, &UserResource{user.ID, user.Email, user.Name, userToken.Token})
 }
 
 func (uc UserController) Logout(w http.ResponseWriter, req *http.Request) {
-	if err := uc.super.DB.Where("id = ?", uc.super.User.ID).First(&uc.super.User).Error; err != nil {
+	var userToken models.UserToken
+
+	if err := uc.super.DB.Where("token = ?", uc.super.Token).First(&userToken).Error; err != nil {
 		uc.super.Response.WithJson(w, http.StatusBadRequest, err)
 	}
 
-	uc.super.User.Token = ""
+	userToken.Active = 0
 
-	if err := uc.super.DB.Save(&uc.super.User).Error; err != nil {
+	if err := uc.super.DB.Save(&userToken).Error; err != nil {
 		uc.super.Response.WithJson(w, http.StatusBadRequest, err)
 		return
 	}
 
-	uc.super.Response.WithJson(w, http.StatusOK, EmptyResponse{})
+	uc.super.Response.WithJson(w, http.StatusOK, &UserResource{})
 }
